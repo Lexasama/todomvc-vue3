@@ -3,12 +3,16 @@ import {useFetchTodo} from '@/composables/todo/useFetchTodo'
 import {useFetch} from '@vueuse/core'
 import {createPinia, defineStore} from 'pinia'
 
-const NAME = 'todos'
+const NAME: string = 'todos'
 
 const url: string = import.meta.env.VITE_API_URL + '/todos'
 
 type TodoState = {
-    todoList: Todo[]
+    todoList: Todo[],
+    editStatus: {
+        isEditing: boolean,
+        id: number
+    }
 }
 
 type TodoUpdate = {
@@ -49,9 +53,12 @@ export function filterList(list: Array<Todo>, filter: TodoListFilter): Todo[] {
     })
 }
 
+
+const defaultEditStatus = {isEditing: false, id: 11};
 export const useTodoStore = defineStore(NAME, {
     state: (): TodoState => ({
         todoList: initialData,
+        editStatus: defaultEditStatus
     }),
 
     getters: {
@@ -74,15 +81,16 @@ export const useTodoStore = defineStore(NAME, {
         hasCompletedItems(): boolean {
             return this.completedItems > 0
         },
+        editValue: (state: TodoState) => state.editStatus,
+        isEditMode: (state: TodoState): boolean => state.editStatus.isEditing
+
     },
 
     actions: {
         async getAll() {
-            console.log("fetch all todos")
             this.todoList = [...await useFetchAll()];
         },
         async create(title: string) {
-            console.log(`posting ${title}`)
 
             await useFetch(url).post({title})
             await this.getAll()
@@ -101,10 +109,15 @@ export const useTodoStore = defineStore(NAME, {
             await useFetch(`${url}?completed=${true}`).delete()
             await this.getAll()
         },
-
         async completeAll(completed: boolean) {
             await useFetch(`${url}/complete-all?completed=${completed}`).put()
             await this.getAll()
         },
+        enterEditMode(id: number) {
+            this.editStatus = {isEditing: true, id}
+        },
+        exitEditMode() {
+            this.editStatus = {...defaultEditStatus};
+        }
     }
 })
